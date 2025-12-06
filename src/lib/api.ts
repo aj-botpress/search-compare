@@ -4,7 +4,7 @@ const EXA_COST_PER_QUERY = 0.005; // $5 per 1000 queries (1-25 results)
 const BRAVE_COST_PER_QUERY = 0.005; // $5 per 1000 queries
 
 // Proxy URL - use Render for production, local proxy for dev
-const PROXY_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+export const PROXY_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
   ? '' // Use relative URLs for local dev (Vite proxy handles it)
   : 'https://search-compare-proxy.onrender.com';
 

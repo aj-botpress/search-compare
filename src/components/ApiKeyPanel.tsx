@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Eye, EyeOff, Check, X, Loader2 } from 'lucide-react';
 import type { ApiKeys } from '../types';
+import { PROXY_URL } from '../lib/api';
 
 interface Props {
   apiKeys: ApiKeys;
@@ -19,7 +20,7 @@ export function ApiKeyPanel({ apiKeys, onKeysChange }: Props) {
     if (!apiKeys.exa) return;
     setExaStatus('testing');
     try {
-      const res = await fetch('/api/exa', {
+      const res = await fetch(`${PROXY_URL}/api/exa`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-api-key': apiKeys.exa },
         body: JSON.stringify({ query: 'test', numResults: 1 }),
@@ -34,7 +35,7 @@ export function ApiKeyPanel({ apiKeys, onKeysChange }: Props) {
     if (!apiKeys.brave) return;
     setBraveStatus('testing');
     try {
-      const res = await fetch('/api/brave?q=test&count=1', {
+      const res = await fetch(`${PROXY_URL}/api/brave?q=test&count=1`, {
         headers: { 'X-Subscription-Token': apiKeys.brave },
       });
       setBraveStatus(res.ok ? 'valid' : 'invalid');
