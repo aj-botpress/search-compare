@@ -1,4 +1,4 @@
-import type { SearchResult, SearchResponse, ExaRawResult, BraveRawResult } from '../types';
+import type { SearchResult, SearchResponse, ExaRawResult, BraveRawResult, SearchOptions } from '../types';
 
 const EXA_COST_PER_QUERY = 0.005; // $5 per 1000 queries (1-25 results)
 const BRAVE_COST_PER_QUERY = 0.005; // $5 per 1000 queries
@@ -76,27 +76,54 @@ function transformBraveResult(raw: BraveRawResult, rank: number): SearchResult {
 export async function searchExa(
   query: string,
   apiKey: string,
-  numResults: number = 10
+  options: SearchOptions
 ): Promise<SearchResponse> {
   const startTime = performance.now();
 
   try {
+    // Build request body with all Exa options
+    const requestBody: Record<string, unknown> = {
+      query,
+      numResults: options.numResults,
+      type: options.exa.type,
+      useAutoprompt: options.exa.useAutoprompt,
+      contents: {
+        text: { maxCharacters: 500 },
+        highlights: { numSentences: 3 },
+        summary: { query },
+      },
+    };
+
+    // Add optional filters
+    if (options.exa.category) {
+      requestBody.category = options.exa.category;
+    }
+    if (options.exa.includeDomains?.length) {
+      requestBody.includeDomains = options.exa.includeDomains;
+    }
+    if (options.exa.excludeDomains?.length) {
+      requestBody.excludeDomains = options.exa.excludeDomains;
+    }
+    if (options.exa.startPublishedDate) {
+      requestBody.startPublishedDate = options.exa.startPublishedDate;
+    }
+    if (options.exa.endPublishedDate) {
+      requestBody.endPublishedDate = options.exa.endPublishedDate;
+    }
+    if (options.exa.includeText?.length) {
+      requestBody.includeText = options.exa.includeText;
+    }
+    if (options.exa.excludeText?.length) {
+      requestBody.excludeText = options.exa.excludeText;
+    }
+
     const response = await fetch(`${PROXY_URL}/api/exa`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'x-api-key': apiKey,
       },
-      body: JSON.stringify({
-        query,
-        numResults,
-        type: 'auto',
-        contents: {
-          text: { maxCharacters: 500 },
-          highlights: { numSentences: 3 },
-          summary: { query },
-        },
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     const latencyMs = Math.round(performance.now() - startTime);
@@ -136,15 +163,36 @@ export async function searchExa(
 export async function searchBrave(
   query: string,
   apiKey: string,
-  numResults: number = 10
+  options: SearchOptions
 ): Promise<SearchResponse> {
   const startTime = performance.now();
 
   try {
+    // Build query params with all Brave options
     const params = new URLSearchParams({
       q: query,
-      count: String(numResults),
+      count: String(Math.min(options.numResults, 20)), // Brave max is 20
     });
+
+    // Add optional params
+    if (options.brave.country) {
+      params.set('country', options.brave.country);
+    }
+    if (options.brave.searchLang) {
+      params.set('search_lang', options.brave.searchLang);
+    }
+    if (options.brave.safesearch) {
+      params.set('safesearch', options.brave.safesearch);
+    }
+    if (options.brave.freshness) {
+      params.set('freshness', options.brave.freshness);
+    }
+    if (options.brave.extraSnippets !== undefined) {
+      params.set('extra_snippets', String(options.brave.extraSnippets));
+    }
+    if (options.brave.spellcheck !== undefined) {
+      params.set('spellcheck', String(options.brave.spellcheck));
+    }
 
     const response = await fetch(`${PROXY_URL}/api/brave?${params}`, {
       method: 'GET',

@@ -144,6 +144,49 @@ export interface ApiKeys {
 
 export type Provider = 'exa' | 'brave';
 
+// Search configuration options
+export interface SearchOptions {
+  numResults: number;
+  // Exa-specific options
+  exa: {
+    type: 'auto' | 'neural' | 'keyword';
+    category?: 'company' | 'research paper' | 'news' | 'pdf' | 'github' | 'tweet' | 'personal site' | 'linkedin profile' | '';
+    useAutoprompt?: boolean;
+    includeDomains?: string[];
+    excludeDomains?: string[];
+    startPublishedDate?: string;
+    endPublishedDate?: string;
+    includeText?: string[];
+    excludeText?: string[];
+  };
+  // Brave-specific options
+  brave: {
+    country?: string;
+    searchLang?: string;
+    safesearch?: 'off' | 'moderate' | 'strict';
+    freshness?: 'pd' | 'pw' | 'pm' | 'py' | ''; // past day, week, month, year
+    extraSnippets?: boolean;
+    spellcheck?: boolean;
+  };
+}
+
+export const DEFAULT_SEARCH_OPTIONS: SearchOptions = {
+  numResults: 10,
+  exa: {
+    type: 'auto',
+    category: '',
+    useAutoprompt: true,
+  },
+  brave: {
+    country: 'us',
+    searchLang: 'en',
+    safesearch: 'moderate',
+    freshness: '',
+    extraSnippets: true,
+    spellcheck: true,
+  },
+};
+
 export interface SearchState {
   query: string;
   numResults: number;

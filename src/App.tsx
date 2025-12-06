@@ -6,12 +6,27 @@ import { ResultsColumn } from './components/ResultsColumn';
 import { HistorySidebar } from './components/HistorySidebar';
 import { searchExa, searchBrave } from './lib/api';
 import { loadApiKeys, saveApiKeys, loadHistory, addHistoryEntry, clearHistory } from './lib/storage';
-import type { ApiKeys, SearchResponse, HistoryEntry, SearchMetrics } from './types';
+import type { ApiKeys, SearchResponse, HistoryEntry, SearchMetrics, SearchOptions } from './types';
 
 function App() {
   const [apiKeys, setApiKeys] = useState<ApiKeys>({ exa: '', brave: '' });
   const [query, setQuery] = useState('');
-  const [numResults, setNumResults] = useState(10);
+  const [searchOptions, setSearchOptions] = useState<SearchOptions>({
+    numResults: 10,
+    exa: {
+      type: 'auto',
+      category: '',
+      useAutoprompt: true,
+    },
+    brave: {
+      country: 'us',
+      searchLang: 'en',
+      safesearch: 'moderate',
+      freshness: '',
+      extraSnippets: true,
+      spellcheck: true,
+    },
+  });
   const [isSearching, setIsSearching] = useState(false);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [sessionCost, setSessionCost] = useState(0);
@@ -71,7 +86,7 @@ function App() {
 
     if (apiKeys.exa) {
       searchPromises.push(
-        searchExa(query, apiKeys.exa, numResults).then((res) => {
+        searchExa(query, apiKeys.exa, searchOptions).then((res) => {
           results.exa = res;
         })
       );
@@ -79,7 +94,7 @@ function App() {
 
     if (apiKeys.brave) {
       searchPromises.push(
-        searchBrave(query, apiKeys.brave, numResults).then((res) => {
+        searchBrave(query, apiKeys.brave, searchOptions).then((res) => {
           results.brave = res;
         })
       );
@@ -104,7 +119,7 @@ function App() {
       const entry: HistoryEntry = {
         id: crypto.randomUUID(),
         query,
-        numResults,
+        numResults: searchOptions.numResults,
         exa: results.exa?.metrics ?? null,
         brave: results.brave?.metrics ?? null,
         timestamp: Date.now(),
@@ -120,7 +135,7 @@ function App() {
       // Clear the search input for next search
       setQuery('');
     }
-  }, [apiKeys, query, numResults]);
+  }, [apiKeys, query, searchOptions]);
 
   // View a history entry (no API call, just display stored results)
   const handleViewHistory = useCallback((entry: HistoryEntry) => {
@@ -216,10 +231,10 @@ function App() {
           {hasResults && (
             <SearchInput
               query={query}
-              numResults={numResults}
+              options={searchOptions}
               isSearching={isSearching}
               onQueryChange={setQuery}
-              onNumResultsChange={setNumResults}
+              onOptionsChange={setSearchOptions}
               onSearch={handleSearch}
               variant="compact"
             />
@@ -246,10 +261,10 @@ function App() {
                 {/* Centered Search Input */}
                 <SearchInput
                   query={query}
-                  numResults={numResults}
+                  options={searchOptions}
                   isSearching={isSearching}
                   onQueryChange={setQuery}
-                  onNumResultsChange={setNumResults}
+                  onOptionsChange={setSearchOptions}
                   onSearch={handleSearch}
                   variant="centered"
                 />
