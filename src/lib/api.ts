@@ -3,11 +3,10 @@ import type { SearchResult, SearchResponse } from '../types';
 const EXA_COST_PER_QUERY = 0.005; // $5 per 1000 queries (1-25 results)
 const BRAVE_COST_PER_QUERY = 0.005; // $5 per 1000 queries
 
-// Detect environment and set proxy URL
-const isLocalhost = window.location.hostname === 'localhost';
-const PROXY_URL = isLocalhost
-  ? '' // Use relative URLs for local dev (Vite proxy)
-  : 'https://search-compare-proxy.onrender.com'; // Render deployment
+// Proxy URL - use Render for production, local proxy for dev
+const PROXY_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  ? '' // Use relative URLs for local dev (Vite proxy handles it)
+  : 'https://search-compare-proxy.onrender.com';
 
 interface ExaResult {
   title: string;
