@@ -1,4 +1,4 @@
-import type { SearchResult, SearchResponse } from '../types';
+import type { SearchResult, SearchResponse, ExaRawResult, BraveRawResult } from '../types';
 
 const EXA_COST_PER_QUERY = 0.005; // $5 per 1000 queries (1-25 results)
 const BRAVE_COST_PER_QUERY = 0.005; // $5 per 1000 queries
@@ -8,31 +8,69 @@ export const PROXY_URL = window.location.hostname === 'localhost' || window.loca
   ? '' // Use relative URLs for local dev (Vite proxy handles it)
   : 'https://search-compare-proxy.onrender.com';
 
-interface ExaResult {
-  title: string;
-  url: string;
-  text?: string;
-  highlights?: string[];
-  publishedDate?: string;
-  author?: string;
-}
-
-interface ExaResponse {
-  results: ExaResult[];
+// Exa API response wrapper
+interface ExaApiResponse {
+  results: ExaRawResult[];
   serverLatencyMs?: number;
   costDollars?: { total: number };
+  requestId?: string;
+  resolvedSearchType?: string;
+  error?: string;
 }
 
-interface BraveWebResult {
-  title: string;
-  url: string;
-  description: string;
-  page_age?: string;
-}
-
-interface BraveResponse {
-  web?: { results: BraveWebResult[] };
+// Brave API response wrapper
+interface BraveApiResponse {
+  web?: { results: BraveRawResult[] };
   serverLatencyMs?: number;
+  query?: { original: string };
+  error?: string;
+}
+
+// Transform Exa raw result to normalized SearchResult
+function transformExaResult(raw: ExaRawResult, rank: number): SearchResult {
+  return {
+    rank,
+    title: raw.title || 'Untitled',
+    url: raw.url,
+    snippet: raw.highlights?.[0] || raw.text?.slice(0, 300) || '',
+    publishedDate: raw.publishedDate,
+    author: raw.author,
+    favicon: raw.favicon,
+    thumbnail: raw.image,
+    highlights: raw.highlights,
+    summary: raw.summary,
+    meta: {
+      id: raw.id,
+      score: raw.score,
+      highlightScores: raw.highlightScores,
+      subpageCount: raw.subpages?.length,
+      extractedLinks: raw.extras?.links,
+      extractedImages: raw.extras?.imageLinks,
+    },
+    _raw: raw,
+  };
+}
+
+// Transform Brave raw result to normalized SearchResult
+function transformBraveResult(raw: BraveRawResult, rank: number): SearchResult {
+  return {
+    rank,
+    title: raw.title || 'Untitled',
+    url: raw.url,
+    snippet: raw.description || '',
+    publishedDate: raw.page_age,
+    favicon: raw.meta_url?.favicon || raw.profile?.img,
+    thumbnail: raw.thumbnail?.src || raw.thumbnail?.original,
+    sourceName: raw.profile?.name || raw.profile?.long_name,
+    meta: {
+      type: raw.type,
+      language: raw.language,
+      familyFriendly: raw.family_friendly,
+      isLocal: raw.is_source_local,
+      hostname: raw.meta_url?.hostname || raw.profile?.long_name,
+    },
+    _raw: raw,
+  };
 }
 
 export async function searchExa(
@@ -55,30 +93,26 @@ export async function searchExa(
         type: 'auto',
         contents: {
           text: { maxCharacters: 500 },
-          highlights: { numSentences: 2 },
+          highlights: { numSentences: 3 },
+          summary: { query },
         },
       }),
     });
 
     const latencyMs = Math.round(performance.now() - startTime);
-    const data: ExaResponse = await response.json();
+    const data: ExaApiResponse = await response.json();
 
     if (!response.ok) {
       return {
         results: [],
         metrics: { latencyMs, resultCount: 0, costUsd: 0, timestamp: Date.now() },
-        error: (data as any).error || 'Exa API error',
+        error: data.error || 'Exa API error',
       };
     }
 
-    const results: SearchResult[] = (data.results || []).map((r, i) => ({
-      rank: i + 1,
-      title: r.title || 'Untitled',
-      url: r.url,
-      snippet: r.highlights?.[0] || r.text?.slice(0, 200) || '',
-      publishedDate: r.publishedDate,
-      author: r.author,
-    }));
+    const results: SearchResult[] = (data.results || []).map((raw, i) =>
+      transformExaResult(raw, i + 1)
+    );
 
     return {
       results,
@@ -121,24 +155,20 @@ export async function searchBrave(
     });
 
     const latencyMs = Math.round(performance.now() - startTime);
-    const data: BraveResponse = await response.json();
+    const data: BraveApiResponse = await response.json();
 
     if (!response.ok) {
       return {
         results: [],
         metrics: { latencyMs, resultCount: 0, costUsd: 0, timestamp: Date.now() },
-        error: (data as any).error || 'Brave API error',
+        error: data.error || 'Brave API error',
       };
     }
 
     const webResults = data.web?.results || [];
-    const results: SearchResult[] = webResults.map((r, i) => ({
-      rank: i + 1,
-      title: r.title || 'Untitled',
-      url: r.url,
-      snippet: r.description || '',
-      publishedDate: r.page_age,
-    }));
+    const results: SearchResult[] = webResults.map((raw, i) =>
+      transformBraveResult(raw, i + 1)
+    );
 
     return {
       results,

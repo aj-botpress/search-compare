@@ -2,8 +2,16 @@ import type { ApiKeys, HistoryEntry } from '../types';
 
 const STORAGE_KEYS = {
   API_KEYS: 'search-compare-api-keys',
+  API_STATUS: 'search-compare-api-status',
   HISTORY: 'search-compare-history',
 } as const;
+
+export type ApiKeyStatus = 'untested' | 'valid' | 'invalid';
+
+export interface ApiStatus {
+  exa: ApiKeyStatus;
+  brave: ApiKeyStatus;
+}
 
 const MAX_HISTORY_ENTRIES = 50;
 
@@ -24,6 +32,25 @@ export function loadApiKeys(): ApiKeys {
   } catch (e) {
     console.error('Failed to load API keys:', e);
     return { exa: '', brave: '' };
+  }
+}
+
+export function saveApiStatus(status: ApiStatus): void {
+  try {
+    localStorage.setItem(STORAGE_KEYS.API_STATUS, JSON.stringify(status));
+  } catch (e) {
+    console.error('Failed to save API status:', e);
+  }
+}
+
+export function loadApiStatus(): ApiStatus {
+  try {
+    const data = localStorage.getItem(STORAGE_KEYS.API_STATUS);
+    if (!data) return { exa: 'untested', brave: 'untested' };
+    return JSON.parse(data);
+  } catch (e) {
+    console.error('Failed to load API status:', e);
+    return { exa: 'untested', brave: 'untested' };
   }
 }
 
