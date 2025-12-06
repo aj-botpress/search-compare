@@ -1,73 +1,174 @@
-# React + TypeScript + Vite
+# Search Compare
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A side-by-side comparison tool for evaluating search API providers. Run the same query against multiple providers and compare results, latency, and costs in real-time.
 
-Currently, two official plugins are available:
+**Live Demo:** https://aj-botpress.github.io/search-compare/
+*(Bring your own API keys — first request may be slow due to cold start)*
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Supported Providers
 
-## React Compiler
+| Provider | Type | Pricing |
+|----------|------|---------|
+| [Exa](https://exa.ai) | Neural/semantic search | $5 per 1,000 queries |
+| [Brave Search](https://brave.com/search/api/) | Traditional web search | Free 2K/mo, then $5 per 1,000 |
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Features
 
-## Expanding the ESLint configuration
+- **Side-by-side results** — Same query, both providers, instant comparison
+- **Real-time metrics** — Latency, result count, cost per query
+- **Search history** — Review past searches, re-run queries, export to CSV
+- **Local storage** — API keys and history persist in browser
+- **Terminal aesthetic** — Data-dense, monospace UI
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Architecture
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+```mermaid
+flowchart TB
+    subgraph Browser["Browser (GitHub Pages)"]
+        UI[React Frontend]
+        LS[(localStorage)]
+    end
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+    subgraph Proxy["Proxy Server (Render)"]
+        Express[Express.js]
+    end
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+    subgraph APIs["Search APIs"]
+        Exa[Exa API]
+        Brave[Brave API]
+    end
+
+    UI --> |API Keys + Query| Express
+    UI <--> |Keys, History| LS
+    Express --> |POST /search| Exa
+    Express --> |GET /web/search| Brave
+    Exa --> |Results + Metrics| Express
+    Brave --> |Results + Metrics| Express
+    Express --> |Unified Response| UI
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Data Flow
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+```mermaid
+sequenceDiagram
+    participant User
+    participant Frontend
+    participant Proxy
+    participant Exa
+    participant Brave
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+    User->>Frontend: Enter query
+    Frontend->>Proxy: POST /api/exa
+    Frontend->>Proxy: GET /api/brave
+
+    par Parallel Requests
+        Proxy->>Exa: POST api.exa.ai/search
+        Proxy->>Brave: GET api.search.brave.com
+    end
+
+    Exa-->>Proxy: Results + latency
+    Brave-->>Proxy: Results + latency
+    Proxy-->>Frontend: Normalized responses
+    Frontend->>Frontend: Calculate metrics
+    Frontend->>Frontend: Save to history
+    Frontend-->>User: Display comparison
 ```
+
+## Project Structure
+
+```
+search-compare/
+├── src/
+│   ├── components/
+│   │   ├── ApiKeyPanel.tsx     # API key inputs with validation
+│   │   ├── SearchInput.tsx     # Query input + result count
+│   │   ├── StatsGrid.tsx       # Metrics dashboard
+│   │   ├── ResultsColumn.tsx   # Single provider results
+│   │   └── HistoryView.tsx     # Past searches + export
+│   ├── lib/
+│   │   ├── api.ts              # API client functions
+│   │   └── storage.ts          # localStorage helpers
+│   ├── types.ts                # TypeScript interfaces
+│   └── App.tsx                 # Main application
+├── server/
+│   └── index.js                # Express proxy server
+└── render.yaml                 # Render deployment config
+```
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js 18+
+- API keys from [Exa](https://exa.ai) and/or [Brave](https://brave.com/search/api/)
+
+### Local Development
+
+```bash
+# Install dependencies
+npm install
+cd server && npm install && cd ..
+
+# Start dev server (frontend + proxy)
+npm run dev
+```
+
+This starts:
+- Frontend at `http://localhost:5173`
+- Proxy server at `http://localhost:3001`
+
+### Production Deployment
+
+**Frontend:** Deployed to GitHub Pages via GitHub Actions on push to `main`.
+
+**Proxy Server:** Deploy to Render using the blueprint:
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://dashboard.render.com/select-repo?type=blueprint)
+
+Or manually:
+1. Create a new Web Service on Render
+2. Point to this repo, set root directory to `server`
+3. Build command: `npm install`
+4. Start command: `npm start`
+
+## API Reference
+
+### Proxy Endpoints
+
+```
+POST /api/exa
+Headers: x-api-key: <your-exa-key>
+Body: { query, numResults, type, contents }
+
+GET /api/brave?q=<query>&count=<num>
+Headers: X-Subscription-Token: <your-brave-key>
+```
+
+### Response Format
+
+Both endpoints return normalized results with server-side latency:
+
+```typescript
+interface SearchResponse {
+  results: SearchResult[];
+  metrics: {
+    latencyMs: number;
+    resultCount: number;
+    costUsd: number;
+    timestamp: number;
+  };
+  error?: string;
+}
+```
+
+## Tech Stack
+
+- **Frontend:** React 19, TypeScript, Tailwind CSS 4, Vite
+- **Backend:** Express.js (proxy only)
+- **Hosting:** GitHub Pages (frontend), Render (proxy)
+- **Charts:** Recharts
+- **Icons:** Lucide React
+
+## License
+
+MIT
