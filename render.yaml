@@ -1,0 +1,16 @@
+# Render Blueprint for search-compare proxy server
+# Deploy at: https://dashboard.render.com/select-repo?type=blueprint
+
+services:
+  - type: web
+    name: search-compare-proxy
+    runtime: node
+    region: oregon
+    plan: free
+    rootDir: server
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+    healthCheckPath: /health

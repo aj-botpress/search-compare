@@ -3,14 +3,11 @@ import type { SearchResult, SearchResponse } from '../types';
 const EXA_COST_PER_QUERY = 0.005; // $5 per 1000 queries (1-25 results)
 const BRAVE_COST_PER_QUERY = 0.005; // $5 per 1000 queries
 
-// Detect if running on GitHub Pages (no proxy available)
-const isGitHubPages = window.location.hostname.includes('github.io');
-
-// API endpoints
-const EXA_API_URL = isGitHubPages ? 'https://api.exa.ai/search' : '/api/exa';
-const BRAVE_API_URL = isGitHubPages
-  ? 'https://api.search.brave.com/res/v1/web/search'
-  : '/api/brave';
+// Detect environment and set proxy URL
+const isLocalhost = window.location.hostname === 'localhost';
+const PROXY_URL = isLocalhost
+  ? '' // Use relative URLs for local dev (Vite proxy)
+  : 'https://search-compare-proxy.onrender.com'; // Render deployment
 
 interface ExaResult {
   title: string;
@@ -47,7 +44,7 @@ export async function searchExa(
   const startTime = performance.now();
 
   try {
-    const response = await fetch(EXA_API_URL, {
+    const response = await fetch(`${PROXY_URL}/api/exa`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -95,11 +92,10 @@ export async function searchExa(
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    const corsHint = isGitHubPages ? ' (CORS may be blocking - run locally with proxy)' : '';
     return {
       results: [],
       metrics: { latencyMs: 0, resultCount: 0, costUsd: 0, timestamp: Date.now() },
-      error: message + corsHint,
+      error: message,
     };
   }
 }
@@ -117,11 +113,7 @@ export async function searchBrave(
       count: String(numResults),
     });
 
-    const url = isGitHubPages
-      ? `${BRAVE_API_URL}?${params}`
-      : `/api/brave?${params}`;
-
-    const response = await fetch(url, {
+    const response = await fetch(`${PROXY_URL}/api/brave?${params}`, {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
@@ -160,11 +152,10 @@ export async function searchBrave(
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    const corsHint = isGitHubPages ? ' (CORS may be blocking - run locally with proxy)' : '';
     return {
       results: [],
       metrics: { latencyMs: 0, resultCount: 0, costUsd: 0, timestamp: Date.now() },
-      error: message + corsHint,
+      error: message,
     };
   }
 }

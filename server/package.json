@@ -1,6 +1,10 @@
 {
-  "name": "search-compare-server",
+  "name": "search-compare-proxy",
+  "version": "1.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "start": "node index.js"
   },
